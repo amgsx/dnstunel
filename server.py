@@ -5,7 +5,6 @@
 import argparse
 import asyncio
 import logging
-import os
 import struct
 import sys
 import websockets
@@ -105,13 +104,6 @@ def main():
     parser.add_argument('--debug', action='store_true', dest='debug', default=False,
                         help='enable debug outputing')
     args = parser.parse_args(sys.argv[1:])
-    if 'PORT' in os.environ:
-        # we are probably in heroku environment
-        port = int(os.environ['PORT'])
-        addr = '0.0.0.0'
-    else:
-        port = args.bind_port
-        addr = args.bind_address
     if args.debug:
         logging_level = logging.DEBUG
     else:
@@ -119,9 +111,9 @@ def main():
     logging.basicConfig(level=logging_level,
                         format='%(asctime)s %(levelname)-8s %(message)s',
                         datefmt='%Y-%m-%d %H:%M:%S')
-    start_server = websockets.serve(handle, addr, port)
+    start_server = websockets.serve(handle, args.bind_address, args.bind_port)
     asyncio.get_event_loop().run_until_complete(start_server)
-    logging.info('listening on %s:%d' % (addr, port))
+    logging.info('listening on %s:%d' % (args.bind_address, args.bind_port))
     asyncio.get_event_loop().run_forever()
 
 

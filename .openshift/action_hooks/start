@@ -1,0 +1,4 @@
+#!/bin/bash
+
+cd $OPENSHIFT_REPO_DIR
+nohup python server.py -b ${OPENSHIFT_PYTHON_IP} -p ${OPENSHIFT_PYTHON_PORT} &

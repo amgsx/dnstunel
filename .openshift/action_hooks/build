@@ -1,0 +1,11 @@
+#!/bin/bash
+
+pushd ${OPENSHIFT_TMP_DIR}
+curl -s https://www.python.org/ftp/python/3.5.1/Python-3.5.1.tar.xz | tar -Jx
+pushd Python-3.5.1
+echo "now start building Python 3.5.1..."
+./configure --prefix="${OPENSHIFT_HOMEDIR}/Python" --quiet
+make -j 10 --quiet
+make install
+popd
+popd

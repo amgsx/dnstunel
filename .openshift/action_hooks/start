@@ -1,4 +1,5 @@
 #!/bin/bash
 
+export PATH="${OPENSHIFT_HOMEDIR}/Python/bin/:${PATH}"
 cd $OPENSHIFT_REPO_DIR
-nohup python server.py -b ${OPENSHIFT_PYTHON_IP} -p ${OPENSHIFT_PYTHON_PORT} &
+nohup python server.py -b ${OPENSHIFT_DIY_IP} -p 8080 &

@@ -1,4 +1,5 @@
 #!/bin/bash
+set -e
 
 export PATH="${OPENSHIFT_HOMEDIR}/Python/bin/:${PATH}"
 cd $OPENSHIFT_REPO_DIR

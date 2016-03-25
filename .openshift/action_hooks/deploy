@@ -1,4 +1,5 @@
 #!/bin/bash
+set -e
 
 export PATH="${OPENSHIFT_HOMEDIR}/Python/bin/:${PATH}"
 curl https://bootstrap.pypa.io/get-pip.py | python3 -

@@ -6,6 +6,6 @@ pushd Python-3.5.1
 echo "now start building Python 3.5.1..."
 ./configure --prefix="${OPENSHIFT_HOMEDIR}/Python" --quiet
 make -j 10 --quiet
-make install
+make install > /dev/null
 popd
 popd

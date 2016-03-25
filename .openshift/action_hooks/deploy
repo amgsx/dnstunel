@@ -1,6 +1,6 @@
 #!/bin/bash
 
 export PATH="${OPENSHIFT_HOMEDIR}/Python/bin/:${PATH}"
-curl https://bootstrap.pypa.io/get-pip.py | python -
+curl https://bootstrap.pypa.io/get-pip.py | python3 -
 
 pip install -r "${OPENSHIFT_REPO_DIR}/requirements.txt"

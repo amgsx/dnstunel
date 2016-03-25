@@ -3,11 +3,12 @@ set -e
 
 cd ${OPENSHIFT_TMP_DIR}
 curl -s https://www.python.org/ftp/python/3.5.1/Python-3.5.1.tar.xz | tar -Jx
-mkdir "${OPENSHIFT_HOMEDIR}/Python"
+INSTALL_DIR="${OPENSHIFT_HOMEDIR}/app-root/runtime/Python"
+mkdir ${INSTALL_DIR}
 
 cd Python-3.5.1
 echo "now start building Python 3.5.1..."
-./configure --prefix="${OPENSHIFT_HOMEDIR}/Python" --quiet
+./configure --prefix="${INSTALL_DIR}" --quiet
 make -j 10 --quiet > /dev/null 2>&1
 make install > /dev/null 2>&1
 echo "Python 3.5.1 installed"

@@ -1,6 +1,0 @@
-#!/bin/bash
-set -e
-
-export PATH="${OPENSHIFT_HOMEDIR}/app-root/runtime/Python/bin/:${PATH}"
-cd $OPENSHIFT_REPO_DIR
-nohup python3 server.py -b ${OPENSHIFT_DIY_IP} -p 8080 &

@@ -71,6 +71,17 @@ def send_back_to_client(packed_data):
 
 
 @asyncio.coroutine
+def ping_forever(ws):
+    try:
+        while True:
+            yield from ws.ping()
+            yield from asyncio.sleep(30)
+    except Exception as exp:
+        logging.error('ping failed: ' + str(exp))
+        ws.close()
+
+
+@asyncio.coroutine
 def connect_ws_server(server_addr):
     ws = None
     while True:
@@ -85,6 +96,7 @@ def connect_ws_server(server_addr):
                 ws = yield from websockets.connect(server_addr)
                 logging.info('server connected')
                 asyncio_ensure_future(receive_data(ws))
+                asyncio_ensure_future(ping_forever(ws))
             # let it go background, do not block this loop
             asyncio_ensure_future(send_to_server(ws, client_addr, data))
         except Exception as exp:

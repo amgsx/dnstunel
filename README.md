@@ -38,6 +38,9 @@ Clone this branch, then push:
 git push heroku master
 ~~~~~~~~
 
+## Deplay on OpenShift
+OpenShift does not support outgoing raw socket, so this program won't work, don't waste your time.
+
 ## Run client
 Very simple:
 

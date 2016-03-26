@@ -1,3 +1,5 @@
 #!/bin/bash
 
-pkill -f 'python3 server.py -b'
+if pgrep -f 'python3 server.py -b' > /dev/null; then
+    pkill -f 'python3 server.py -b'
+fi

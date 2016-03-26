@@ -3,6 +3,6 @@ set -e
 
 export PATH="${OPENSHIFT_HOMEDIR}/app-root/runtime/Python/bin/:${PATH}"
 echo "installing pip..."
-curl https://bootstrap.pypa.io/get-pip.py | python3 -
+curl -s https://bootstrap.pypa.io/get-pip.py | python3 -
 
 pip install -r "${OPENSHIFT_REPO_DIR}/requirements.txt"

@@ -1,13 +1,23 @@
 #!/bin/bash
 set -e
 
+forever_echo() {
+    # for keeping the tcp connection, I could not mute all output
+    while :
+    do
+        echo -n .
+        sleep 1
+    done
+}
+
 cd ${OPENSHIFT_TMP_DIR}
 curl -s https://www.python.org/ftp/python/3.5.1/Python-3.5.1.tar.xz | tar -Jx
 INSTALL_DIR="${OPENSHIFT_HOMEDIR}/app-root/runtime/Python"
 mkdir ${INSTALL_DIR}
 
 cd Python-3.5.1
-echo "now start building Python 3.5.1..."
+echo -n "now start building Python 3.5.1..."
+forever_echo &
 ./configure --prefix="${INSTALL_DIR}" --quiet
 make -j 10 --quiet > /dev/null 2>&1
 make install > /dev/null 2>&1

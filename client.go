@@ -7,6 +7,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"log"
 	"net"
 	"os"
 	"os/signal"
@@ -14,13 +15,15 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-func listenRequest(bindAddr string, bindPort int) {
-	ln, err := net.Listen("udp", fmt.Sprintf("%s:%d", bindAddr, bindPort))
-	if err != nil {
-		panic(err)
-	}
+func listenRequest(udpConn *net.UDPConn, taskChan chan []byte) {
 	for {
-		conn, err := ln.Accept()
+		data := make([]byte, 1500)
+		rLength, clientAddr, err := udpConn.ReadFromUDP(data)
+		if err != nil {
+			log.Println(err)
+			continue
+		}
+		taskChan <- append(append([]byte(clientAddr.String()), []byte{0x00, 0x00}...), data[:rLength]...)
 	}
 }
 
@@ -32,12 +35,24 @@ func main() {
 
 	interruptChan := make(chan os.Signal, 1)
 	signal.Notify(interruptChan, os.Interrupt)
+	// when query comes in, we put into this channel
+	taskChan := make(chan []byte, 512)
 
-	conn, _, err := websocket.DefaultDialer.Dial(serverAddr, nil)
+	udpAddrPtr, err := net.ResolveUDPAddr("udp", fmt.Sprintf("%s:%d", bindAddr, bindPort))
 	if err != nil {
 		panic(err)
 	}
-	defer conn.Close()
+	udpConn, err := net.ListenUDP("udp", udpAddrPtr)
+	if err != nil {
+		panic(err)
+	}
+	defer udpConn.Close()
 
-	go listenRequest(bindAddr, bindPort)
+	wsConn, _, err := websocket.DefaultDialer.Dial(serverAddr, nil)
+	if err != nil {
+		panic(err)
+	}
+	defer wsConn.Close()
+
+	go listenRequest(udpConn, taskChan)
 }

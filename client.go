@@ -1,5 +1,18 @@
 /*
 Created © 2016-04-22 20:13 by @radaiming
+// listen local DNS query
+listenRequest -> taskChan
+
+// listen websocket response
+listenResponse -> retChan
+
+// main
+select {
+<- taskChan
+    go sendRequest
+<- retChan
+    go sendResult
+}
 */
 
 package main
@@ -21,6 +34,7 @@ func listenRequest(udpConn *net.UDPConn, taskChan chan []byte) {
 			log.Println(err)
 			continue
 		}
+		// https://golang.org/ref/spec#Passing_arguments_to_..._parameters
 		taskChan <- append(append([]byte(clientAddr.String()), []byte{0x00, 0x00}...), data[:rLength]...)
 	}
 }

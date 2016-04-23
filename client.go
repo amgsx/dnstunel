@@ -9,8 +9,6 @@ import (
 	"fmt"
 	"log"
 	"net"
-	"os"
-	"os/signal"
 
 	"github.com/gorilla/websocket"
 )
@@ -33,8 +31,6 @@ func main() {
 	var bindPort = *flag.Int("Bind Port", 5353, "bind to this port, default to 5353")
 	flag.Parse()
 
-	interruptChan := make(chan os.Signal, 1)
-	signal.Notify(interruptChan, os.Interrupt)
 	// when query comes in, we put into this channel
 	taskChan := make(chan []byte, 512)
 

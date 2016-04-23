@@ -78,10 +78,13 @@ func listenResponse(wsConn *websocket.Conn, retChan chan []byte) {
 	}
 }
 
-func sendRequest(wsConn *websocket.Conn, data []byte) {
-	err := wsConn.WriteMessage(websocket.BinaryMessage, data)
-	if err != nil {
-		log.Println(err)
+func sendRequest(wsConn *websocket.Conn, taskChan chan []byte) {
+	for {
+		data := <-taskChan
+		err := wsConn.WriteMessage(websocket.BinaryMessage, data)
+		if err != nil {
+			log.Println(err)
+		}
 	}
 }
 
@@ -138,13 +141,10 @@ func main() {
 	go pingForever(wsConn)
 	go listenRequest(udpConn, taskChan)
 	go listenResponse(wsConn, retChan)
+	go sendRequest(wsConn, taskChan)
 
 	for {
-		select {
-		case data := <-taskChan:
-			go sendRequest(wsConn, data)
-		case data := <-retChan:
-			go sendResult(udpConn, data)
-		}
+		data := <-retChan
+		go sendResult(udpConn, data)
 	}
 }

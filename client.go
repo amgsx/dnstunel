@@ -28,6 +28,8 @@ import (
 	"github.com/gorilla/websocket"
 )
 
+var debug bool
+
 func byteToDomain(data []byte) string {
 	var domain string
 	length := data[0]
@@ -61,7 +63,9 @@ func listenRequest(udpConn *net.UDPConn, taskChan chan []byte) {
 			log.Println(err)
 			continue
 		}
-		log.Println("querying " + byteToDomain(data[12:]))
+		if debug {
+			log.Println("querying " + byteToDomain(data[12:]))
+		}
 		// https://golang.org/ref/spec#Passing_arguments_to_..._parameters
 		taskChan <- append(append([]byte(clientAddr.String()), []byte{0x00, 0x00}...), data[:rLength]...)
 	}
@@ -102,7 +106,10 @@ func sendResult(udpConn *net.UDPConn, data []byte) {
 	}
 	realData := data[index+2:]
 	udpConn.WriteToUDP(realData, clientAddrPtr)
-	log.Println("result sent")
+	if debug {
+		domain := byteToDomain(realData[12:])
+		log.Println(fmt.Sprintf("result of %s sent to %s", domain, string(clientAddr)))
+	}
 }
 
 func main() {
@@ -111,6 +118,7 @@ func main() {
 	flag.StringVar(&serverAddr, "c", "", "set server url, like wss://test.com/dns")
 	flag.StringVar(&bindAddr, "b", "127.0.0.1", "bind to this address, default to 127.0.0.1")
 	flag.IntVar(&bindPort, "p", 5353, "bind to this port, default to 5353")
+	flag.BoolVar(&debug, "d", false, "enable debug outputing")
 	flag.Parse()
 
 	// when query comes in, we put into this channel
@@ -134,7 +142,7 @@ func main() {
 	if err != nil {
 		log.Panicln(err)
 	} else {
-		log.Println("connected to websocket server")
+		log.Println("connected to " + serverAddr)
 		defer wsConn.Close()
 	}
 

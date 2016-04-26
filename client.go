@@ -85,9 +85,15 @@ func listenResponse(wsConn *websocket.Conn, retChan chan []byte) {
 func sendRequest(wsConn *websocket.Conn, taskChan chan []byte) {
 	for {
 		data := <-taskChan
-		err := wsConn.WriteMessage(websocket.BinaryMessage, data)
+		err := wsConn.SetWriteDeadline(time.Now().Add(time.Second * 10))
 		if err != nil {
 			log.Println(err)
+			continue
+		}
+		err = wsConn.WriteMessage(websocket.BinaryMessage, data)
+		if err != nil {
+			log.Println(err)
+			continue
 		}
 	}
 }

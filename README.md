@@ -41,7 +41,9 @@ OpenShift does not support outgoing raw socket, so this program won't work, don'
 Very simple:
 
 ~~~~~~~~
-./client.py -c wss://your-app-name.herokuapp.com -p 12345
+cd client
+go build
+./client -c wss://your-app-name.herokuapp.com -p 12345
 ~~~~~~~~
 
 ~~~~~~~~
@@ -63,35 +65,9 @@ $ docker build -t dnstunnel:latest .
 ### Running as a server
 
 ~~~~~~~~
-$ docker run -d --env mode=server --name=dserver -P dnstunnel:latest -b 0.0.0.0
+$ docker run -d --name=dserver -P dnstunnel:latest
 ~~~~~~~~
 
 Please follow instructions above to set up nginx as an SSL termination.
 To make fixed port mappings either on server or client, replace **-P/--publish-all** with **-p/--publish** [option](https://docs.docker.com/engine/reference/run/#expose-incoming-ports).
 Otherwise you need to run `docker port` to figure out which port is actually listen on the host.
-
-### Running as a client
-
-~~~~~~~~
-$ docker run -d --name=dclient -P dnstunnel:latest -c wss://test.com/shining_tunnel -d
-~~~~~~~~
-
-### Get port mappings
-
-Running [docker port](https://docs.docker.com/engine/reference/run/) to find out the port mappings.
-
-~~~~~~~~
-# server side
-$ docker port dserver
-5353/tcp -> 0.0.0.0:32770
-5353/udp -> 0.0.0.0:32770
-
-# client side
-$ docker port dclient
-5353/tcp -> 0.0.0.0:32775
-5353/udp -> 0.0.0.0:32775
-~~~~~~~~
-
-You should be able to send DNS requests to client port.
-
-Huge thanks to the [WebSockets](https://github.com/aaugustin/websockets) project!

@@ -1,4 +1,3 @@
 *
-!*.py
-!requirements.txt
-!*.sh
+!client
+!server

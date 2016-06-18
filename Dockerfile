@@ -1,17 +1,12 @@
-FROM alpine:edge
-MAINTAINER Hong Hao <oahong@gmail.com>
+FROM golang:1.6-alpine
+MAINTAINER Ming Dai <radaiming@gmail.com>
 
-WORKDIR /dnstunnel
+ADD . /go/src/github.com/radaiming/DNS_Tunnel/
 
-ADD * ./
+RUN apk update && apk add git
+RUN cd /go/src/github.com/radaiming/DNS_Tunnel/ && go get ./...
+RUN go install github.com/radaiming/DNS_Tunnel/server/
 
-RUN sed -e 's/dl-cdn.alpinelinux.org/mirrors.ustc.edu.cn/g' -i /etc/apk/repositories
+ENTRYPOINT ["/go/bin/server", "-b", "0.0.0.0"]
 
-# I'm not going to learn ash syntax
-RUN apk update && apk upgrade libssl1.0 && apk add bash python3 ca-certificates && update-ca-certificates
-
-RUN pip3 install -r requirements.txt
-
-ENTRYPOINT ["./docker-start.sh"]
-
-EXPOSE 5353/udp 5353/tcp
+EXPOSE 5353/tcp

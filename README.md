@@ -7,16 +7,12 @@ DNS query <--> client <--> WebSocket <--> server <--> DNS server
 ~~~~~~~~
 
 ## Deploy on your server
-Install websockets:
 
 ~~~~~~~~
-pip3 install websockets
-~~~~~~~~
-
-Run it:
-
-~~~~~~~~
-./server.py -p 9999
+go get -u github.com/gorilla/websocket
+cd server
+go build
+./server -p 9999
 ~~~~~~~~
 
 Now it's listening on localhost 9999, next to config nginx, add a location for it:
@@ -35,7 +31,7 @@ Please use HTTPS, not only for security, but also to avoid possible breakage cau
 Clone this branch, then push:
 
 ~~~~~~~~
-git push heroku master
+git push heroku go:master
 ~~~~~~~~
 
 ## Deplay on OpenShift
@@ -45,10 +41,8 @@ OpenShift does not support outgoing raw socket, so this program won't work, don'
 Very simple:
 
 ~~~~~~~~
-./client.py -c wss://dns-tunnel.herokuapp.com -p 12345
+./client.py -c wss://your-app-name.herokuapp.com -p 12345
 ~~~~~~~~
-
-Yes, you could try the demo app above, but it will be online 18 hous per day. Now test:
 
 ~~~~~~~~
 $ dig +short twitter.com @127.0.0.1 -p 12345

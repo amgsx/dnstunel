@@ -1,0 +1,15 @@
+{
+	"ImportPath": "github.com/radaiming/DNS_Tunnel",
+	"GoVersion": "go1.6",
+	"GodepVersion": "v74",
+	"Packages": [
+		"./..."
+	],
+	"Deps": [
+		{
+			"ImportPath": "github.com/gorilla/websocket",
+			"Comment": "v1.0.0-12-ga687089",
+			"Rev": "a68708917c6a4f06314ab4e52493cc61359c9d42"
+		}
+	]
+}

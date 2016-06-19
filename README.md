@@ -54,6 +54,12 @@ $ dig +short twitter.com @127.0.0.1 -p 12345
 199.59.149.198
 ~~~~~~~~
 
+Or you can use multiple server:
+
+~~~~~~~~
+./client -c wss://a.com/tunnel,wss://b.com/tunnel -p 12345,12346
+~~~~~~~~
+
 ## Running inside docker containers
 
 ### Building a docker image

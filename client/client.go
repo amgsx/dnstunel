@@ -35,6 +35,7 @@ var debug bool
 type Client struct {
 	taskChan   chan []byte
 	retChan    chan []byte
+	quitChan   chan int
 	bindAddr   string
 	bindPort   int
 	serverAddr string
@@ -74,7 +75,6 @@ func (c *Client) listenRequest() {
 		rLength, clientAddr, err := c.listenConn.ReadFromUDP(data)
 		if err != nil {
 			log.Println("error reading client request:", err)
-			close(c.retChan)
 			return
 		}
 		if debug {
@@ -90,8 +90,6 @@ func (c *Client) listenResponse() {
 		_, data, err := c.wsConn.ReadMessage()
 		if err != nil {
 			log.Println("error reading from websocket:", err)
-			// a rude way to terminate the goroutine
-			close(c.retChan)
 			return
 		}
 		c.retChan <- data
@@ -100,16 +98,19 @@ func (c *Client) listenResponse() {
 
 func (c *Client) sendRequest() {
 	for {
-		data := <-c.taskChan
-		err := c.wsConn.SetWriteDeadline(time.Now().Add(time.Second * 10))
-		if err != nil {
-			log.Println("error setting deadline for websocket writing:", err)
-		}
-		err = c.wsConn.WriteMessage(websocket.BinaryMessage, data)
-		if err != nil {
-			log.Println("error writing message to websocket:", err)
-			close(c.retChan)
+		select {
+		case <-c.quitChan:
 			return
+		case data := <-c.taskChan:
+			err := c.wsConn.SetWriteDeadline(time.Now().Add(time.Second * 10))
+			if err != nil {
+				log.Println("error setting deadline for websocket writing:", err)
+			}
+			err = c.wsConn.WriteMessage(websocket.BinaryMessage, data)
+			if err != nil {
+				log.Println("error writing message to websocket:", err)
+				return
+			}
 		}
 	}
 }
@@ -136,10 +137,17 @@ func (c *Client) sendResult(data []byte) {
 
 func startOneClient(c Client) {
 	// restart myself
-	defer func(c Client) {
+	defer func() {
 		time.Sleep(time.Second * 5)
-		go startOneClient(c)
-	}(c)
+		newClient := Client{}
+		newClient.serverAddr = c.serverAddr
+		newClient.taskChan = make(chan []byte, 512)
+		newClient.retChan = make(chan []byte, 512)
+		newClient.quitChan = make(chan int)
+		newClient.bindAddr = c.bindAddr
+		newClient.bindPort = c.bindPort
+		go startOneClient(newClient)
+	}()
 
 	udpAddrPtr, err := net.ResolveUDPAddr("udp", fmt.Sprintf("%s:%d", c.bindAddr, c.bindPort))
 	if err != nil {
@@ -169,11 +177,12 @@ func startOneClient(c Client) {
 	go c.listenResponse()
 	go c.sendRequest()
 	for {
-		data, ok := <-c.retChan
-		if !ok {
+		select {
+		case <-c.quitChan:
 			return
+		case data := <-c.retChan:
+			go c.sendResult(data)
 		}
-		go c.sendResult(data)
 	}
 }
 
@@ -205,6 +214,7 @@ func main() {
 		c.serverAddr = serverSlice[i]
 		c.taskChan = make(chan []byte, 512)
 		c.retChan = make(chan []byte, 512)
+		c.quitChan = make(chan int)
 		go startOneClient(c)
 	}
 

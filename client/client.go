@@ -26,9 +26,21 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"strconv"
+	"strings"
 )
 
 var debug bool
+
+type Client struct {
+	taskChan   chan []byte
+	retChan    chan []byte
+	bindAddr   string
+	bindPort   int
+	serverAddr string
+	wsConn     *websocket.Conn
+	listenConn *net.UDPConn
+}
 
 func byteToDomain(data []byte) string {
 	var domain string
@@ -45,60 +57,64 @@ func byteToDomain(data []byte) string {
 	return domain
 }
 
-func pingForever(wsConn *websocket.Conn) {
+func (c *Client) pingForever() {
 	ticker := time.NewTicker(time.Second * 30)
 	for _ = range ticker.C {
-		err := wsConn.WriteControl(websocket.PingMessage, []byte{0x00}, time.Now().Add(time.Second*30))
+		err := c.wsConn.WriteControl(websocket.PingMessage, []byte{0x00}, time.Now().Add(time.Second*30))
 		if err != nil {
-			log.Fatalln(err)
+			log.Println("fail to ping websocket server:", err)
+			return
 		}
 	}
 }
 
-func listenRequest(udpConn *net.UDPConn, taskChan chan []byte) {
+func (c *Client) listenRequest() {
 	for {
 		data := make([]byte, 1500)
-		rLength, clientAddr, err := udpConn.ReadFromUDP(data)
+		rLength, clientAddr, err := c.listenConn.ReadFromUDP(data)
 		if err != nil {
-			log.Println(err)
-			continue
+			log.Println("error reading client request:", err)
+			close(c.retChan)
+			return
 		}
 		if debug {
 			log.Println("querying " + byteToDomain(data[12:]))
 		}
 		// https://golang.org/ref/spec#Passing_arguments_to_..._parameters
-		taskChan <- append(append([]byte(clientAddr.String()), []byte{0x00, 0x00}...), data[:rLength]...)
+		c.taskChan <- append(append([]byte(clientAddr.String()), []byte{0x00, 0x00}...), data[:rLength]...)
 	}
 }
 
-func listenResponse(wsConn *websocket.Conn, retChan chan []byte) {
+func (c *Client) listenResponse() {
 	for {
-		_, data, err := wsConn.ReadMessage()
+		_, data, err := c.wsConn.ReadMessage()
 		if err != nil {
-			log.Panicln(err)
-			continue
+			log.Println("error reading from websocket:", err)
+			// a rude way to terminate the goroutine
+			close(c.retChan)
+			return
 		}
-		retChan <- data
+		c.retChan <- data
 	}
 }
 
-func sendRequest(wsConn *websocket.Conn, taskChan chan []byte) {
+func (c *Client) sendRequest() {
 	for {
-		data := <-taskChan
-		err := wsConn.SetWriteDeadline(time.Now().Add(time.Second * 10))
+		data := <-c.taskChan
+		err := c.wsConn.SetWriteDeadline(time.Now().Add(time.Second * 10))
 		if err != nil {
-			log.Println(err)
-			continue
+			log.Println("error setting deadline for websocket writing:", err)
 		}
-		err = wsConn.WriteMessage(websocket.BinaryMessage, data)
+		err = c.wsConn.WriteMessage(websocket.BinaryMessage, data)
 		if err != nil {
-			log.Panicln(err)
-			continue
+			log.Println("error writing message to websocket:", err)
+			close(c.retChan)
+			return
 		}
 	}
 }
 
-func sendResult(udpConn *net.UDPConn, data []byte) {
+func (c *Client) sendResult(data []byte) {
 	index := bytes.Index(data, []byte{0x00, 0x00})
 	if index < 0 {
 		log.Println("index error for returned packet")
@@ -111,54 +127,88 @@ func sendResult(udpConn *net.UDPConn, data []byte) {
 		return
 	}
 	realData := data[index+2:]
-	udpConn.WriteToUDP(realData, clientAddrPtr)
+	c.listenConn.WriteToUDP(realData, clientAddrPtr)
 	if debug {
 		domain := byteToDomain(realData[12:])
-		log.Println(fmt.Sprintf("result of %s sent to %s", domain, string(clientAddr)))
+		log.Println(fmt.Sprintf("result of %s from %s sent to %s", domain, c.serverAddr, string(clientAddr)))
+	}
+}
+
+func startOneClient(c Client) {
+	// restart myself
+	defer func(c Client) {
+		time.Sleep(time.Second * 5)
+		go startOneClient(c)
+	}(c)
+
+	udpAddrPtr, err := net.ResolveUDPAddr("udp", fmt.Sprintf("%s:%d", c.bindAddr, c.bindPort))
+	if err != nil {
+		log.Panicln("wrong binding address or port:", c.bindAddr, c.bindPort)
+		return
+	}
+	c.listenConn, err = net.ListenUDP("udp", udpAddrPtr)
+	if err != nil {
+		log.Println(err)
+		return
+	} else {
+		log.Println(fmt.Sprintf("listening on %s:%d", c.bindAddr, c.bindPort))
+	}
+	defer c.listenConn.Close()
+
+	c.wsConn, _, err = websocket.DefaultDialer.Dial(c.serverAddr, nil)
+	if err != nil {
+		log.Println(err)
+		return
+	} else {
+		log.Println("connected to " + c.serverAddr)
+	}
+	defer c.wsConn.Close()
+
+	go c.pingForever()
+	go c.listenRequest()
+	go c.listenResponse()
+	go c.sendRequest()
+	for {
+		data, ok := <-c.retChan
+		if !ok {
+			return
+		}
+		go c.sendResult(data)
 	}
 }
 
 func main() {
-	var serverAddr, bindAddr string
-	var bindPort int
-	flag.StringVar(&serverAddr, "c", "", "set server url, like wss://test.com/dns")
-	flag.StringVar(&bindAddr, "b", "127.0.0.1", "bind to this address, default to 127.0.0.1")
-	flag.IntVar(&bindPort, "p", 5353, "bind to this port, default to 5353")
+	var serverAddrs, bindAddr, bindPorts string
+	flag.StringVar(&serverAddrs, "c", "", "set server url, like wss://test1.com/dns,wss://test2.com/dns")
+	flag.StringVar(&bindAddr, "b", "127.0.0.1", "bind to this address")
+	flag.StringVar(&bindPorts, "p", "0", "bind to this port, like 5353,5354")
 	flag.BoolVar(&debug, "d", false, "enable debug outputing")
 	flag.Parse()
 
-	// when query comes in, we put into this channel
-	taskChan := make(chan []byte, 512)
-	// when result comes back, we put into this channel
-	retChan := make(chan []byte, 512)
-
-	udpAddrPtr, err := net.ResolveUDPAddr("udp", fmt.Sprintf("%s:%d", bindAddr, bindPort))
-	if err != nil {
-		log.Panicln(err)
+	if len(serverAddrs) == 0 || len(bindAddr) == 0 {
+		log.Panicln("server address and port required")
 	}
-	udpConn, err := net.ListenUDP("udp", udpAddrPtr)
-	if err != nil {
-		log.Panicln(err)
-	} else {
-		log.Println(fmt.Sprintf("listening on %s:%d", bindAddr, bindPort))
-		defer udpConn.Close()
+	serverSlice := strings.Split(serverAddrs, ",")
+	portSlice := strings.Split(bindPorts, ",")
+	if len(serverSlice) != len(portSlice) {
+		log.Panicln("number of servers and binding ports not matched")
 	}
 
-	wsConn, _, err := websocket.DefaultDialer.Dial(serverAddr, nil)
-	if err != nil {
-		log.Panicln(err)
-	} else {
-		log.Println("connected to " + serverAddr)
-		defer wsConn.Close()
+	for i := range serverSlice {
+		var err error
+		c := Client{}
+		c.bindAddr = bindAddr
+		c.bindPort, err = strconv.Atoi(portSlice[i])
+		if err != nil {
+			log.Panicln("wrong port argument:", portSlice[i])
+		}
+		c.serverAddr = serverSlice[i]
+		c.taskChan = make(chan []byte, 512)
+		c.retChan = make(chan []byte, 512)
+		go startOneClient(c)
 	}
-
-	go pingForever(wsConn)
-	go listenRequest(udpConn, taskChan)
-	go listenResponse(wsConn, retChan)
-	go sendRequest(wsConn, taskChan)
 
 	for {
-		data := <-retChan
-		go sendResult(udpConn, data)
+		time.Sleep(time.Second)
 	}
 }

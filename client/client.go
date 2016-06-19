@@ -128,8 +128,10 @@ func (c *Client) sendResult(data []byte) {
 		return
 	}
 	realData := data[index+2:]
-	c.listenConn.WriteToUDP(realData, clientAddrPtr)
-	if debug {
+	_, err = c.listenConn.WriteToUDP(realData, clientAddrPtr)
+	if err != nil {
+		log.Println("error sending result back to client:", err)
+	} else if debug {
 		domain := byteToDomain(realData[12:])
 		log.Println(fmt.Sprintf("result of %s from %s sent to %s", domain, c.serverAddr, string(clientAddr)))
 	}

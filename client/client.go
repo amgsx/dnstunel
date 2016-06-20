@@ -75,7 +75,7 @@ func (c *Client) listenRequest() {
 		data := make([]byte, 1500)
 		rLength, clientAddr, err := c.listenConn.ReadFromUDP(data)
 		if err != nil {
-			log.Printf("goroutine for %s error reading client request: %s\n", c.serverAddr, err.Error())
+			log.Printf("%s: error reading client request: %s\n", c.serverAddr, err.Error())
 			c.quitChan <- 1
 			return
 		}
@@ -91,7 +91,7 @@ func (c *Client) listenResponse() {
 	for {
 		_, data, err := c.wsConn.ReadMessage()
 		if err != nil {
-			log.Printf("goroutine for %s error reading from websocket: %s\n", c.serverAddr, err.Error())
+			log.Printf("%s: error reading from websocket: %s\n", c.serverAddr, err.Error())
 			c.quitChan <- 1
 			return
 		}
@@ -107,11 +107,11 @@ func (c *Client) sendRequest() {
 		case data := <-c.taskChan:
 			err := c.wsConn.SetWriteDeadline(time.Now().Add(time.Second * 10))
 			if err != nil {
-				log.Printf("goroutine for %s error setting deadline for websocket writing: %s\n", c.serverAddr, err.Error())
+				log.Printf("%s: error setting deadline for websocket writing: %s\n", c.serverAddr, err.Error())
 			}
 			err = c.wsConn.WriteMessage(websocket.BinaryMessage, data)
 			if err != nil {
-				log.Printf("goroutine for %s error writing message to websocket: %s\n", c.serverAddr, err.Error())
+				log.Printf("%s: error writing message to websocket: %s\n", c.serverAddr, err.Error())
 				close(c.quitChan)
 				return
 			}
@@ -122,7 +122,7 @@ func (c *Client) sendRequest() {
 func (c *Client) sendResult(data []byte) {
 	index := bytes.Index(data, []byte{0x00, 0x00})
 	if index < 0 {
-		log.Printf("goroutine for %s index error for returned packet\n", c.serverAddr)
+		log.Printf("%s: index error for returned packet\n", c.serverAddr)
 		return
 	}
 	clientAddr := data[:index]
@@ -134,7 +134,7 @@ func (c *Client) sendResult(data []byte) {
 	realData := data[index+2:]
 	_, err = c.listenConn.WriteToUDP(realData, clientAddrPtr)
 	if err != nil {
-		log.Printf("goroutine for %s error sending result back to client: %s\n", c.serverAddr, err.Error())
+		log.Printf("%s: error sending result back to client: %s\n", c.serverAddr, err.Error())
 	} else if debug {
 		domain := byteToDomain(realData[12:])
 		log.Println(fmt.Sprintf("result of %s from %s sent to %s", domain, c.serverAddr, string(clientAddr)))

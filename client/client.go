@@ -64,7 +64,7 @@ func (c *Client) pingForever() {
 		err := c.wsConn.WriteControl(websocket.PingMessage, []byte{0x00}, time.Now().Add(time.Second*5))
 		if err != nil {
 			log.Println("fail to ping websocket server:", err)
-			close(c.quitChan)
+			c.quitChan <- 1
 			return
 		}
 	}
@@ -76,7 +76,7 @@ func (c *Client) listenRequest() {
 		rLength, clientAddr, err := c.listenConn.ReadFromUDP(data)
 		if err != nil {
 			log.Println("error reading client request:", err)
-			close(c.quitChan)
+			c.quitChan <- 1
 			return
 		}
 		if debug {
@@ -92,7 +92,7 @@ func (c *Client) listenResponse() {
 		_, data, err := c.wsConn.ReadMessage()
 		if err != nil {
 			log.Println("error reading from websocket:", err)
-			close(c.quitChan)
+			c.quitChan <- 1
 			return
 		}
 		c.retChan <- data

@@ -220,7 +220,7 @@ func main() {
 		c.serverAddr = serverSlice[i]
 		c.taskChan = make(chan []byte, 512)
 		c.retChan = make(chan []byte, 512)
-		c.quitChan = make(chan int)
+		c.quitChan = make(chan int, 10)
 		go startOneClient(c)
 	}
 

@@ -61,9 +61,10 @@ func byteToDomain(data []byte) string {
 func (c *Client) pingForever() {
 	ticker := time.NewTicker(time.Second * 30)
 	for _ = range ticker.C {
-		err := c.wsConn.WriteControl(websocket.PingMessage, []byte{0x00}, time.Now().Add(time.Second*30))
+		err := c.wsConn.WriteControl(websocket.PingMessage, []byte{0x00}, time.Now().Add(time.Second*5))
 		if err != nil {
 			log.Println("fail to ping websocket server:", err)
+			close(c.quitChan)
 			return
 		}
 	}
@@ -75,6 +76,7 @@ func (c *Client) listenRequest() {
 		rLength, clientAddr, err := c.listenConn.ReadFromUDP(data)
 		if err != nil {
 			log.Println("error reading client request:", err)
+			close(c.quitChan)
 			return
 		}
 		if debug {
@@ -90,6 +92,7 @@ func (c *Client) listenResponse() {
 		_, data, err := c.wsConn.ReadMessage()
 		if err != nil {
 			log.Println("error reading from websocket:", err)
+			close(c.quitChan)
 			return
 		}
 		c.retChan <- data
@@ -109,6 +112,7 @@ func (c *Client) sendRequest() {
 			err = c.wsConn.WriteMessage(websocket.BinaryMessage, data)
 			if err != nil {
 				log.Println("error writing message to websocket:", err)
+				close(c.quitChan)
 				return
 			}
 		}
